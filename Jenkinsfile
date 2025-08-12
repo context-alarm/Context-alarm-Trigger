@@ -63,6 +63,9 @@ pipeline {
               scp -o StrictHostKeyChecking=no "$ENV_FILE" "$REMOTE:${APP_DIR}/.env"
               ssh -o StrictHostKeyChecking=no "$REMOTE" "chmod 600 ${APP_DIR}/.env && sed -i 's/\r$//' ${APP_DIR}/.env"
 
+              # Ensure writable log directory exists
+              ssh -o StrictHostKeyChecking=no "$REMOTE" "mkdir -p ${APP_DIR}/logs && chmod 777 ${APP_DIR}/logs"
+
               # Pull and (re)start container
               ssh -o StrictHostKeyChecking=no "$REMOTE" "\
                 set -eu; \
@@ -71,7 +74,9 @@ pipeline {
                 docker rm -f ${CONTAINER_NAME} >/dev/null 2>&1 || true; \
                 docker run -d --name ${CONTAINER_NAME} --restart unless-stopped \
                   --env-file ${APP_DIR}/.env \
+                  --env LOG_FILE=/logs/alarm_checker.log \
                   -v ${APP_DIR}/.env:/app/.env:ro \
+                  -v ${APP_DIR}/logs:/logs \
                   --log-opt max-size=10m --log-opt max-file=3 \
                   ${FULL_IMAGE_TAG} \
                   sh -c 'while true; /app/alarm-checker; sleep 900; done' \

@@ -97,13 +97,15 @@ func main() {
 		logger.SetLevel(logrus.InfoLevel)
 	}
 
-	// Create log file
-	logFile, err := os.OpenFile(config.App.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		logger.Fatal("Failed to open log file:", err)
+	// Create log file if configured; otherwise log to stdout
+	if strings.TrimSpace(config.App.LogFile) != "" {
+		if logFile, err := os.OpenFile(config.App.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err != nil {
+			logger.WithError(err).Warn("Failed to open log file; falling back to stdout")
+		} else {
+			defer logFile.Close()
+			logger.SetOutput(logFile)
+		}
 	}
-	defer logFile.Close()
-	logger.SetOutput(logFile)
 
 	logger.Info("Starting Context Alarm Checker...")
 	logger.Debug("Configuration loaded:", config.ToJSON())
