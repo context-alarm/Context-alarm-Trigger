@@ -68,10 +68,8 @@ type AlarmChecker struct {
 var mode string
 
 func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file:", err)
-	}
+	// Load environment variables if a local .env is present; otherwise rely on process env
+	_ = godotenv.Load()
 
 	// Load configuration
 	config, err := LoadConfig()

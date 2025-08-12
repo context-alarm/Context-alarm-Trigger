@@ -68,9 +68,10 @@ pipeline {
                 set -eu; \
                 echo '${GHCR_TOKEN}' | docker login ${REGISTRY} -u '${GHCR_USER}' --password-stdin; \
                 docker pull ${FULL_IMAGE_TAG}; \
-                docker rm -f ${CONTAINER_NAME} || true; \
+                docker rm -f ${CONTAINER_NAME} >/dev/null 2>&1 || true; \
                 docker run -d --name ${CONTAINER_NAME} --restart unless-stopped \
                   --env-file ${APP_DIR}/.env \
+                  -v ${APP_DIR}/.env:/app/.env:ro \
                   --log-opt max-size=10m --log-opt max-file=3 \
                   ${FULL_IMAGE_TAG} \
                   sh -c 'while true; /app/alarm-checker; sleep 900; done' \
