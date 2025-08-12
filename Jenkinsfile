@@ -78,8 +78,8 @@ pipeline {
                   -v ${APP_DIR}/.env:/app/.env:ro \
                   -v ${APP_DIR}/logs:/logs \
                   --log-opt max-size=10m --log-opt max-file=3 \
-                  ${FULL_IMAGE_TAG} \
-                  sh -c 'while true; /app/alarm-checker; sleep 900; done' \
+                  --entrypoint sh \
+                  ${FULL_IMAGE_TAG} -c 'while true; /app/alarm-checker; sleep 900; done' \
               "
             '''
           }
