@@ -587,20 +587,36 @@ REQUIRED RESPONSE FORMAT (JSON only):
 	}
 
 	return fmt.Sprintf(`
-Check if this condition is met: %s
+You are a context-aware alarm checker with access to real-time information via Google Search.
 
-Search for current data and return JSON:
+Alarm Details:
+- ID: %s
+- Title: %s
+- Description: %s
+
+Context (JSON):
+%s
+
+Condition (JSON):
+%s
+
+Instructions:
+- Use Google Search to fetch up-to-date, verifiable information.
+- If Context includes a location, restrict your search and answer to that location.
+- Use official/local authority sources when available; include concise key facts.
+- Decide if the Condition is currently met based on the latest data.
+- Respond ONLY with JSON in the exact format below (no markdown, no extra text):
 {
   "condition_met": true/false,
   "current_data": {
     "searched_information": "what you found",
-    "data_source": "source",
-    "timestamp": "when updated",
+    "data_source": "source(s)",
+    "timestamp": "ISO-8601 when updated",
     "key_values": {}
   },
-  "reason": "explanation"
+  "reason": "short explanation"
 }
-`, alarm.ConditionData)
+`, alarm.ID, alarm.Title, alarm.Description, alarm.ContextData, alarm.ConditionData)
 }
 
 func (ac *AlarmChecker) logAlarmCheck(alarmID string, result CheckResult) error {
@@ -660,6 +676,13 @@ func (ac *AlarmChecker) makePhoneCall(user *User, alarm Alarm) {
 		"call_sid": *resp.Sid,
 		"alarm_id": alarm.ID,
 	}).Info("Phone call initiated successfully")
+
+	// Deactivate the alarm after a successful phone call
+	if err := ac.deactivateAlarm(alarm.ID); err != nil {
+		ac.logger.WithError(err).WithField("alarm_id", alarm.ID).Error("Failed to deactivate alarm after call")
+	} else {
+		ac.logger.WithField("alarm_id", alarm.ID).Info("Alarm deactivated after successful call")
+	}
 }
 
 func (ac *AlarmChecker) updateLastChecked(alarmID string) error {
@@ -668,6 +691,17 @@ func (ac *AlarmChecker) updateLastChecked(alarmID string) error {
 	_, err := ac.db.Exec(query, time.Now(), alarmID)
 	if err != nil {
 		return fmt.Errorf("failed to update last_checked: %w", err)
+	}
+
+	return nil
+}
+
+func (ac *AlarmChecker) deactivateAlarm(alarmID string) error {
+	query := `UPDATE context_alarms SET active = false WHERE id = ?`
+
+	_, err := ac.db.Exec(query, alarmID)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate alarm: %w", err)
 	}
 
 	return nil
