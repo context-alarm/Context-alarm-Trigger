@@ -660,10 +660,15 @@ func (ac *AlarmChecker) makePhoneCall(user *User, alarm Alarm) {
 		"alarm_id": alarm.ID,
 	}).Info("Generated phone call message")
 
-	params := &twilioApi.CreateCallParams{}
-	params.SetTo(user.PhoneNumber)
-	params.SetFrom(os.Getenv("TWILIO_PHONE_NUMBER"))
-	params.SetTwiml(fmt.Sprintf(`<Response><Say>%s</Say></Response>`, message))
+    params := &twilioApi.CreateCallParams{}
+    params.SetTo(user.PhoneNumber)
+    // Prefer configured Twilio phone number; fall back to env for backward compatibility
+    fromNumber := ac.config.Twilio.PhoneNumber
+    if strings.TrimSpace(fromNumber) == "" {
+        fromNumber = os.Getenv("TWILIO_PHONE_NUMBER")
+    }
+    params.SetFrom(fromNumber)
+    params.SetTwiml(fmt.Sprintf(`<Response><Say>%s</Say></Response>`, message))
 
 	resp, err := ac.twilioClient.Api.CreateCall(params)
 	if err != nil {
