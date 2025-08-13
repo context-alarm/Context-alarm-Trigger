@@ -65,7 +65,7 @@ func LoadConfig() (*Config, error) {
 		},
 		Gemini: GeminiConfig{
 			APIKey: getEnv("GEMINI_API_KEY", ""),
-			Model:  getEnv("GEMINI_MODEL", "gemini-1.5-flash"),
+			Model:  getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
 		},
 		Twilio: TwilioConfig{
 			AccountSID:  getEnv("TWILIO_ACCOUNT_SID", ""),

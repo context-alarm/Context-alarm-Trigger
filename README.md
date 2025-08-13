@@ -192,7 +192,7 @@ DB_NAME=contextalarm
 
 # Gemini AI
 GEMINI_API_KEY=AIzaSyDxeqzMcg1uHo31xAVauEN9_2hyMPsW2os
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-2.5-flash
 
 # Twilio (Phone Calls)
 TWILIO_ACCOUNT_SID=AC6e89aadda2b91b3cfe75ba0a73753a37
