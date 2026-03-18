@@ -95,6 +95,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Normalize image name
+        id: image
+        run: |
+          echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -109,7 +114,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -136,11 +141,16 @@ jobs:
       group: gitops-update-${{ github.ref }}
       cancel-in-progress: true
     env:
-      NEW_IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
       GITOPS_REPO: ${{ vars.GITOPS_REPO || 'context-alarm/context-alarm-gitops' }}
       GITOPS_BRANCH: ${{ vars.GITOPS_BRANCH || 'main' }}
       GITOPS_MANIFEST_PATH: ${{ vars.GITOPS_MANIFEST_PATH }}
     steps:
+      - name: Normalize image name
+        id: image
+        run: |
+          REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          echo "new_image=ghcr.io/${REPO_LOWER}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
       - name: Validate GitOps configuration
         run: |
           if [ -z "$GITOPS_REPO" ]; then
@@ -165,6 +175,7 @@ jobs:
       - name: Update image tag in manifest
         run: |
           cd gitops
+          NEW_IMAGE="${{ steps.image.outputs.new_image }}"
           if [ ! -f "$GITOPS_MANIFEST_PATH" ]; then
             echo "Manifest not found: $GITOPS_MANIFEST_PATH"
             exit 1
@@ -203,6 +214,11 @@ jobs:
       packages: read
       security-events: write
     steps:
+      - name: Normalize image name
+        id: image
+        run: |
+          echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -213,7 +229,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          image-ref: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:${{ github.ref_name }}
           format: sarif
           output: trivy-results.sarif
 
