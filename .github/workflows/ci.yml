@@ -142,7 +142,7 @@ jobs:
       cancel-in-progress: true
     env:
       GITOPS_REPO: ${{ vars.GITOPS_REPO || 'context-alarm/context-alarm-gitops' }}
-      GITOPS_BRANCH: ${{ vars.GITOPS_BRANCH || 'main' }}
+      GITOPS_BRANCH: ${{ vars.GITOPS_BRANCH || 'master' }}
       GITOPS_MANIFEST_PATH: ${{ vars.GITOPS_MANIFEST_PATH }}
     steps:
       - name: Normalize image name
