@@ -18,6 +18,6 @@ RUN adduser -D -u 10001 app \
 WORKDIR /app
 COPY --from=build /app/alarm-checker /app/alarm-checker
 RUN mkdir -p /logs && chown app:app /logs
-ENV LOG_FILE=/logs/alarm_checker.log
+ENV LOG_FILE=stdout
 USER app
-ENTRYPOINT ["/app/alarm-checker"]
+ENTRYPOINT ["/app/alarm-checker", "-daemon"]

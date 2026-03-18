@@ -95,8 +95,10 @@ func main() {
 		logger.SetLevel(logrus.InfoLevel)
 	}
 
-	// Create log file if configured; otherwise log to stdout
-	if strings.TrimSpace(config.App.LogFile) != "" {
+	// Create log file if configured; use stdout when LOG_FILE=stdout
+	if strings.EqualFold(strings.TrimSpace(config.App.LogFile), "stdout") {
+		logger.SetOutput(os.Stdout)
+	} else if strings.TrimSpace(config.App.LogFile) != "" {
 		if logFile, err := os.OpenFile(config.App.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err != nil {
 			logger.WithError(err).Warn("Failed to open log file; falling back to stdout")
 		} else {
@@ -167,8 +169,39 @@ func main() {
 		logger.Fatal("Database connection test failed:", err)
 	}
 
-	// Start the alarm checking process
+	// Start one-shot or daemon mode
+	if shouldRunDaemon() {
+		interval, err := time.ParseDuration(config.App.CheckInterval)
+		if err != nil || interval <= 0 {
+			logger.WithError(err).WithField("check_interval", config.App.CheckInterval).Warn("Invalid check interval; using 5m")
+			interval = 5 * time.Minute
+		}
+
+		scheduledChecker := NewScheduledChecker(checker, interval, logger)
+		scheduledChecker.Start()
+		return
+	}
+
 	checker.checkAlarms()
+}
+
+func shouldRunDaemon() bool {
+	if isTrue(os.Getenv("DAEMON_MODE")) {
+		return true
+	}
+
+	for _, arg := range os.Args[1:] {
+		if arg == "-daemon" || arg == "--daemon" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isTrue(value string) bool {
+	v := strings.TrimSpace(strings.ToLower(value))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
 func initDatabaseWithConfig(config *Config) (*sql.DB, error) {
