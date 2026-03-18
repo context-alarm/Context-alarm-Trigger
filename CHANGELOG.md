@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - GitHub-ready project structure
 - Comprehensive documentation
-- CI/CD workflows
+- CI/CD workflowss
 - Docker support
 - Makefile for common tasks
 - Contributing guidelines
