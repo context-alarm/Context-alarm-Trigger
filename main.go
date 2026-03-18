@@ -13,12 +13,10 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/generative-ai-go/genai"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"github.com/twilio/twilio-go"
 	twilioApi "github.com/twilio/twilio-go/rest/api/v2010"
-	"google.golang.org/api/option"
 )
 
 // Alarm represents a context alarm from the database
@@ -131,13 +129,19 @@ func main() {
 		tables := []string{"users", "context_alarms", "alarm_check_logs"}
 		for _, table := range tables {
 			if exists, _ := dbHelper.TableExists(table); exists {
-				dbHelper.GetTableStructure(table)
+				if err := dbHelper.GetTableStructure(table); err != nil {
+					logger.WithError(err).WithField("table", table).Warn("Failed to fetch table structure")
+				}
 			}
 		}
 
 		// Show sample data
-		dbHelper.GetActiveAlarmsSample()
-		dbHelper.GetUsersSample()
+		if err := dbHelper.GetActiveAlarmsSample(); err != nil {
+			logger.WithError(err).Warn("Failed to fetch active alarms sample")
+		}
+		if err := dbHelper.GetUsersSample(); err != nil {
+			logger.WithError(err).Warn("Failed to fetch users sample")
+		}
 
 		logger.Info("Test mode completed successfully")
 		return
@@ -190,73 +194,10 @@ func initDatabaseWithConfig(config *Config) (*sql.DB, error) {
 	return db, nil
 }
 
-func initDatabase() (*sql.DB, error) {
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=skip-verify",
-		dbUser, dbPassword, dbHost, dbPort, dbName)
-
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// Test the connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	return db, nil
-}
-
-func initGeminiClientWithConfig(config *Config) (*genai.Client, error) {
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(config.Gemini.APIKey))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
-	}
-
-	return client, nil
-}
-
-func initGeminiClient() (*genai.Client, error) {
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		return nil, fmt.Errorf("GEMINI_API_KEY not found in environment")
-	}
-
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
-	}
-
-	return client, nil
-}
-
 func initTwilioClientWithConfig(config *Config) *twilio.RestClient {
 	return twilio.NewRestClientWithParams(twilio.ClientParams{
 		Username: config.Twilio.AccountSID,
 		Password: config.Twilio.AuthToken,
-	})
-}
-
-func initTwilioClient() *twilio.RestClient {
-	accountSid := os.Getenv("TWILIO_ACCOUNT_SID")
-	authToken := os.Getenv("TWILIO_AUTH_TOKEN")
-
-	return twilio.NewRestClientWithParams(twilio.ClientParams{
-		Username: accountSid,
-		Password: authToken,
 	})
 }
 
@@ -440,90 +381,6 @@ func (ac *AlarmChecker) getUserByEmail(email string) (*User, error) {
 	}
 
 	return &user, nil
-}
-
-func (ac *AlarmChecker) isWithinTimeWindow(timeWindow string) bool {
-	if timeWindow == "" {
-		return true // No time restriction
-	}
-
-	now := time.Now()
-	currentTime := now.Format("15:04")
-	currentDay := strings.ToLower(now.Weekday().String())
-
-	// Handle different time window formats
-	timeWindow = strings.ToLower(timeWindow)
-
-	// Check for weekday restrictions
-	if strings.Contains(timeWindow, "weekdays") {
-		if currentDay == "saturday" || currentDay == "sunday" {
-			return false
-		}
-	} else if strings.Contains(timeWindow, "weekends") {
-		if currentDay != "saturday" && currentDay != "sunday" {
-			return false
-		}
-	}
-
-	// Extract time range (e.g., "9am-5pm", "09:00-17:00")
-	timeWindow = strings.ReplaceAll(timeWindow, "weekdays", "")
-	timeWindow = strings.ReplaceAll(timeWindow, "weekends", "")
-	timeWindow = strings.TrimSpace(timeWindow)
-
-	if timeWindow == "" {
-		return true
-	}
-
-	// Parse time range
-	parts := strings.Split(timeWindow, "-")
-	if len(parts) != 2 {
-		ac.logger.WithField("time_window", timeWindow).Warn("Invalid time window format")
-		return true
-	}
-
-	startTime := ac.parseTime(strings.TrimSpace(parts[0]))
-	endTime := ac.parseTime(strings.TrimSpace(parts[1]))
-
-	if startTime == "" || endTime == "" {
-		return true
-	}
-
-	return currentTime >= startTime && currentTime <= endTime
-}
-
-func (ac *AlarmChecker) parseTime(timeStr string) string {
-	timeStr = strings.ToLower(timeStr)
-
-	// Handle AM/PM format
-	if strings.Contains(timeStr, "am") || strings.Contains(timeStr, "pm") {
-		timeStr = strings.ReplaceAll(timeStr, "am", "")
-		timeStr = strings.ReplaceAll(timeStr, "pm", "")
-		timeStr = strings.TrimSpace(timeStr)
-
-		// Convert to 24-hour format
-		hour, err := time.Parse("3", timeStr)
-		if err != nil {
-			hour, err = time.Parse("15", timeStr)
-			if err != nil {
-				return ""
-			}
-		}
-
-		if strings.Contains(strings.ToLower(timeStr), "pm") && hour.Hour() != 12 {
-			return fmt.Sprintf("%02d:00", hour.Hour()+12)
-		} else if strings.Contains(strings.ToLower(timeStr), "am") && hour.Hour() == 12 {
-			return "00:00"
-		}
-
-		return fmt.Sprintf("%02d:00", hour.Hour())
-	}
-
-	// Handle 24-hour format
-	if strings.Contains(timeStr, ":") {
-		return timeStr
-	}
-
-	return ""
 }
 
 func (ac *AlarmChecker) checkAlarmCondition(alarm Alarm) CheckResult {

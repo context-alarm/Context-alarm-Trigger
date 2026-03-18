@@ -235,7 +235,6 @@ func (g *GeminiRestClient) GenerateContentWithSearch(prompt string) (CheckResult
 		}
 
 		// Fallback to text analysis
-		responseText = fmt.Sprintf("%s", responseText)
 		result.ConditionMet = containsConditionMet(responseText)
 		result.ResultData["raw_response"] = responseText
 		result.ResultData["parsing_method"] = "text_analysis"
@@ -251,7 +250,6 @@ func (g *GeminiRestClient) GenerateContentWithSearch(prompt string) (CheckResult
 }
 
 func containsConditionMet(text string) bool {
-	text = fmt.Sprintf("%s", text)
 	return bytes.Contains([]byte(text), []byte("\"condition_met\": true")) ||
 		bytes.Contains([]byte(text), []byte("condition met")) ||
 		bytes.Contains([]byte(text), []byte("true")) && bytes.Contains([]byte(text), []byte("condition"))
