@@ -167,10 +167,25 @@ jobs:
           fi
 
       - name: Clone GitOps repo
+        id: gitops_branch
         run: |
           git clone "https://x-access-token:${{ secrets.GITOPS_REPO_TOKEN }}@github.com/${GITOPS_REPO}.git" gitops
           cd gitops
-          git checkout "$GITOPS_BRANCH"
+
+          TARGET_BRANCH="$GITOPS_BRANCH"
+          if git show-ref --verify --quiet "refs/remotes/origin/$GITOPS_BRANCH"; then
+            echo "Using configured GitOps branch: $GITOPS_BRANCH"
+          else
+            TARGET_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^origin/||')
+            if [ -z "$TARGET_BRANCH" ]; then
+              echo "Unable to resolve GitOps default branch from origin/HEAD"
+              exit 1
+            fi
+            echo "Configured branch '$GITOPS_BRANCH' not found; falling back to default branch '$TARGET_BRANCH'"
+          fi
+
+          git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          echo "branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Update image tag in manifest
         run: |
@@ -192,6 +207,13 @@ jobs:
       - name: Commit and push GitOps change
         run: |
           cd gitops
+          TARGET_BRANCH="${{ steps.gitops_branch.outputs.branch }}"
+
+          if [ -z "$TARGET_BRANCH" ]; then
+            echo "Resolved GitOps target branch is empty"
+            exit 1
+          fi
+
           git config user.name "context-alarm-ci"
           git config user.email "context-alarm-ci@users.noreply.github.com"
 
@@ -202,7 +224,7 @@ jobs:
 
           git add "$GITOPS_MANIFEST_PATH"
           git commit -m "chore(deploy): update checker image to ${GITHUB_SHA}"
-          git push origin "$GITOPS_BRANCH"
+          git push origin "$TARGET_BRANCH"
 
   security:
     name: Security Scan

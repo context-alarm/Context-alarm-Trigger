@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- GitHub-ready project structure
+- GitHub-ready project structures
 - Comprehensive documentation
 - CI/CD workflowss
 - Docker support
