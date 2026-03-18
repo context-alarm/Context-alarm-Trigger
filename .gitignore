@@ -132,7 +132,9 @@ Thumbs.db
 
 # Build artifacts
 alarm-checker
+context-alarm-checker
 main
+contextalarm
 *.tar.gz
 *.zip
 

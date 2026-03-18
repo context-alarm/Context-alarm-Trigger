@@ -142,16 +142,16 @@ func (g *GeminiRestClient) GenerateContentWithSearch(prompt string) (CheckResult
 		"request_body": string(requestBody),
 	}).Info("Sending Gemini REST API request with Google Search")
 
-    // Make the REST API call (API key via header per docs)
-    url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", g.model)
+	// Make the REST API call (API key via header per docs)
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", g.model)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return result, fmt.Errorf("failed to create request: %w", err)
 	}
 
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("x-goog-api-key", g.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", g.apiKey)
 
 	client := &http.Client{
 		Timeout: 30 * time.Second,
